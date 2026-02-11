@@ -1,35 +1,49 @@
-# Pendle Basis / Liquidity Shock Monitor
+# Pendle Basis (LST/LRT Yield Curve + Whale Shock Mean Reversion)
 
-A small monitoring scaffold to detect **temporary mispricing** / **basis dislocations** around Pendle PT/YT markets.
+This repo targets the exact setup:
 
-The intuition:
-- PT (Principal Token) ≈ discounted principal
-- YT (Yield Token) ≈ leveraged exposure to yield (convexity)
-- When a large trader hits shallow liquidity, short-term pricing can deviate from a more stable implied-rate baseline.
+- decompose LST/LRT yield curve
+- measure **Implied APY vs Underlying APY** dislocation (Basis)
+- use **YT convexity proxy** + **liquidity shock** to rank mean-reversion opportunities
 
-This repo is designed as a clean, extensible "research-to-monitor" pipeline:
+## Signal framework
 
 ```text
-Data Source → Snapshot → Feature Engineering → Shock Detector → Alert
+Market Snapshot
+  -> Basis = Implied APY - Underlying APY
+  -> Basis z-score (rolling state)
+  -> YT convexity proxy (YT/PT ratio)
+  -> Whale shock proxy (impact, spread, volume/tvl)
+  -> Mean-reversion score + trade hint
 ```
 
-## What this MVP does
+## Current implementation
 
-- Pulls market snapshots from a data source (default: Pendle public API if reachable)
-- Computes simple implied-rate features (placeholder formulae where needed)
-- Detects liquidity stress using *price impact / spread widening / volume spikes* heuristics
-- Emits a ranked "watchlist" of markets worth manual review
+- `pendle_basis/analytics.py`
+  - `compute_metrics(...)` -> basis / basis_z / convexity_proxy / whale_shock
+  - `mean_reversion_score(...)`
+  - `trade_hint(...)`
+- `pendle_basis/detector.py`
+  - combines microstructure stress + basis/convexity layer
+- `pendle_basis/state.py`
+  - rolling basis state persistence (`output/basis_state.json`)
+- `pendle_basis/monitor.py`
+  - end-to-end watchlist build + CSV export (`output/watchlist.csv`)
 
 ## Quick start
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -m pendle_basis.monitor --mock
+python scripts/run_watch.py --mock --top 5
 ```
 
-## Roadmap
+Output:
+- terminal top signals
+- `output/watchlist.csv`
+- `output/basis_state.json`
 
-- plug in on-chain swap events (Pendle router) for real large-trade detection
-- add a persistent store (SQLite) and rolling baselines
-- add alert sinks (Telegram / email)
+## Notes
+
+- This is a research/ranking engine, not an execution bot.
+- API fields across Pendle endpoints can change; source mapping is defensive by design.

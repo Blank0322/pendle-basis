@@ -14,6 +14,8 @@ class MarketSnapshot(BaseModel):
     pt_price: float | None = None
     yt_price: float | None = None
     implied_apy: float | None = None
+    underlying_apy: float | None = None
+    maturity_days: float | None = None
 
     # liquidity / microstructure proxies
     tvl_usd: float | None = None
